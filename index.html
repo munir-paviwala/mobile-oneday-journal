@@ -41,24 +41,56 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 100vh;
-            height: 100dvh;
+            min-height: 100dvh;
             padding: 15px;
             margin: 0;
-            overflow: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
-        h1 {
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 450px;
+            margin: 5px 0 10px;
+        }
+
+        .app-header h1 {
+            margin: 0;
             font-size: 20px;
             font-weight: 600;
             letter-spacing: 0.5px;
-            margin: 5px 0 15px;
+            color: var(--text);
+        }
+
+        .help-icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .help-icon-btn:active {
+            transform: scale(0.9);
+        }
+
+        .help-icon-btn:hover {
             color: var(--text);
         }
 
         #video-container {
             width: 100%;
             flex-grow: 1;
+            flex-shrink: 1;
+            min-height: 220px;
+            max-height: 50dvh;
             max-width: 450px;
             background-color: #000;
             border-radius: 24px;
@@ -124,6 +156,8 @@
 
         .hidden {
             opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
 
         /* Clips Gallery list */
@@ -329,6 +363,245 @@
             transform: scale(0.95);
             background: rgba(232, 93, 78, 0.1);
         }
+
+        /* Modal & Overlay Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(12, 12, 12, 0.96);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 30px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Welcome Modal Details */
+        .welcome-content {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .welcome-content h2 {
+            margin: 15px 0 5px;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-desc {
+            color: var(--text-secondary);
+            font-size: 14.5px;
+            text-align: center;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .welcome-icon {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .instructions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .instruction-item {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .instruction-num {
+            background: rgba(232, 93, 78, 0.1);
+            color: var(--accent);
+            border: 1.5px solid var(--accent);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .instruction-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .instruction-text strong {
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .instruction-text span {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        /* Stitching Modal Details */
+        .stitching-content {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stitching-content h3 {
+            margin: 10px 0 5px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stitching-content p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 5px 0 10px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: #2a2a2a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+            border: 1px solid var(--border);
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--accent);
+            border-radius: 4px;
+            transition: width 0.3s cubic-bezier(0.1, 0.8, 0.25, 1);
+            box-shadow: 0 0 8px rgba(232, 93, 78, 0.5);
+        }
+
+        /* Steps */
+        .stitching-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+            margin-top: 20px;
+            width: 100%;
+            padding-left: 10px;
+        }
+
+        .step {
+            font-size: 13.5px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: color 0.3s;
+        }
+
+        .step::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            flex-shrink: 0;
+        }
+
+        .step.active {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .step.active::before {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        .step.completed {
+            color: #4CAF50;
+        }
+
+        .step.completed::before {
+            background: #4CAF50;
+            box-shadow: none;
+        }
+
+        /* Success Animation */
+        .success-checkmark {
+            width: 60px;
+            height: 60px;
+            margin: 10px auto 20px;
+            display: none;
+        }
+        
+        .success-checkmark.show {
+            display: block;
+        }
+
+        .checkmark-circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 2;
+            stroke-miterlimit: 10;
+            stroke: #4CAF50;
+            fill: none;
+            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+
+        .checkmark-check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            stroke-width: 3;
+            stroke: #4CAF50;
+            fill: none;
+            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+        }
+
+        @keyframes stroke {
+            100% { stroke-dashoffset: 0; }
+        }
     </style>
 </head>
 <body>
@@ -341,7 +614,84 @@
         <button id="install-btn">Install</button>
     </div>
 
-    <h1>Daily Stitch</h1>
+    <header class="app-header">
+        <h1>Daily Stitch</h1>
+        <button id="help-btn" class="help-icon-btn" title="How to use">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Onboarding / Welcome Overlay -->
+    <div id="welcome-overlay" class="modal-overlay">
+        <div class="modal-content welcome-content">
+            <div class="welcome-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+            </div>
+            <h2>Daily Stitch</h2>
+            <p class="welcome-desc">A beautiful, lightweight video journal. Capture quick moments throughout your day and instantly stitch them into a single movie.</p>
+            
+            <div class="instructions-list">
+                <div class="instruction-item">
+                    <div class="instruction-num">1</div>
+                    <div class="instruction-text">
+                        <strong>Record Clips</strong>
+                        <span>Tap "Record 3s" to save quick snapshots of your day. Each clip is stored locally on your device.</span>
+                    </div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-num">2</div>
+                    <div class="instruction-text">
+                        <strong>Preview & Manage</strong>
+                        <span>Tap a clip to play/preview it, or delete it if you want to take a re-run.</span>
+                    </div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-num">3</div>
+                    <div class="instruction-text">
+                        <strong>Stitch & Save</strong>
+                        <span>Stitch your clips into a single video diary and download it instantly. This clears the local space for tomorrow!</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="enter-btn" class="action-btn" style="background-color: var(--accent); border-color: var(--accent); margin-top: 25px; width: 100%;">
+                Enter Application
+            </button>
+        </div>
+    </div>
+
+    <!-- Stitching Progress Modal -->
+    <div id="stitch-modal" class="modal-overlay hidden">
+        <div class="modal-content stitching-content">
+            <div id="stitch-success-checkmark" class="success-checkmark">
+                <svg class="checkmark-svg" viewBox="0 0 52 52" width="60" height="60">
+                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            </div>
+            
+            <h3 id="stitch-title">Stitching Your Story</h3>
+            <p id="stitch-status">Warming up engine...</p>
+            
+            <div class="progress-container">
+                <div id="stitch-progress-bar" class="progress-bar"></div>
+            </div>
+            
+            <div class="stitching-steps">
+                <div id="step-engine" class="step active">Initialize stitching engine</div>
+                <div id="step-prepare" class="step">Prepare local video clips</div>
+                <div id="step-merge" class="step">Merge & process timeline</div>
+                <div id="step-export" class="step">Export movie to download</div>
+            </div>
+        </div>
+    </div>
     
     <div id="video-container">
         <div id="status-overlay">Initializing camera...</div>
@@ -566,8 +916,60 @@
             });
         }
 
-        // Start Initial Camera
-        startCamera(currentFacingMode);
+        // Onboarding and Welcome Modal DOM references
+        const welcomeOverlay = document.getElementById('welcome-overlay');
+        const enterBtn = document.getElementById('enter-btn');
+        const helpBtn = document.getElementById('help-btn');
+        let cameraStarted = false;
+
+        enterBtn.addEventListener('click', () => {
+            welcomeOverlay.classList.add('hidden');
+            if (!cameraStarted) {
+                startCamera(currentFacingMode);
+                cameraStarted = true;
+            }
+        });
+
+        helpBtn.addEventListener('click', () => {
+            enterBtn.innerText = "Resume Application";
+            welcomeOverlay.classList.remove('hidden');
+        });
+
+        // Stitching Modal DOM references
+        const stitchModal = document.getElementById('stitch-modal');
+        const stitchTitle = document.getElementById('stitch-title');
+        const stitchStatus = document.getElementById('stitch-status');
+        const stitchProgressBar = document.getElementById('stitch-progress-bar');
+        const stitchSuccessCheckmark = document.getElementById('stitch-success-checkmark');
+        
+        const stepEngine = document.getElementById('step-engine');
+        const stepPrepare = document.getElementById('step-prepare');
+        const stepMerge = document.getElementById('step-merge');
+        const stepExport = document.getElementById('step-export');
+
+        function updateStitchProgress(percentage) {
+            stitchProgressBar.style.width = `${percentage}%`;
+        }
+
+        function setStepState(stepElement, state) {
+            stepElement.classList.remove('active', 'completed');
+            if (state === 'active') {
+                stepElement.classList.add('active');
+            } else if (state === 'completed') {
+                stepElement.classList.add('completed');
+            }
+        }
+
+        function resetStitchModal() {
+            updateStitchProgress(0);
+            setStepState(stepEngine, 'active');
+            setStepState(stepPrepare, 'inactive');
+            setStepState(stepMerge, 'inactive');
+            setStepState(stepExport, 'inactive');
+            stitchSuccessCheckmark.classList.remove('show');
+            stitchTitle.innerText = "Stitching Your Story";
+            stitchStatus.innerText = "Warming up engine...";
+        }
 
         // Switch Camera Button Click
         switchBtn.addEventListener('click', () => {
@@ -617,16 +1019,20 @@
             recordBtn.disabled = true;
             switchBtn.disabled = true;
             
+            resetStitchModal();
+            stitchModal.classList.remove('hidden');
+            
             try {
-                setStatus("Warming up engine...");
+                updateStitchProgress(10);
                 
                 const { FFmpeg } = FFmpegWASM;
                 const { toBlobURL } = FFmpegUtil;
                 const ffmpeg = new FFmpeg();
                 
-                // Track progress
+                // Track progress during execution
                 ffmpeg.on('progress', ({ progress }) => {
-                    setStatus(`Stitching: ${Math.round(progress * 100)}%`);
+                    stitchStatus.innerText = `Merging: ${Math.round(progress * 100)}%`;
+                    updateStitchProgress(50 + progress * 40); // Map 0.0-1.0 to 50%-90%
                 });
                 
                 // Load core scripts locally (Self-Hosted offline support)
@@ -635,7 +1041,11 @@
                     wasmURL: await toBlobURL('./lib/ffmpeg-core.wasm', 'application/wasm')
                 });
                 
-                setStatus("Reading database...");
+                setStepState(stepEngine, 'completed');
+                setStepState(stepPrepare, 'active');
+                stitchStatus.innerText = "Reading database...";
+                updateStitchProgress(25);
+                
                 const tx = db.transaction("clips", "readonly");
                 const store = tx.objectStore("clips");
                 const getRequest = store.getAll();
@@ -643,6 +1053,7 @@
                 getRequest.onsuccess = async (e) => {
                     const clips = e.target.result;
                     if (clips.length === 0) {
+                        stitchModal.classList.add('hidden');
                         setStatus("No clips logged today.", 3000);
                         mergeBtn.disabled = false;
                         recordBtn.disabled = false;
@@ -650,7 +1061,8 @@
                         return;
                     }
                     
-                    setStatus(`Preparing ${clips.length} clip(s)...`);
+                    stitchStatus.innerText = `Preparing ${clips.length} clip(s)...`;
+                    updateStitchProgress(35);
                     let listContent = "";
                     
                     // Determine file extension matching the recorded mimeType
@@ -666,13 +1078,20 @@
                     
                     await ffmpeg.writeFile('list.txt', listContent);
                     
-                    setStatus("Merging clips...");
+                    setStepState(stepPrepare, 'completed');
+                    setStepState(stepMerge, 'active');
+                    stitchStatus.innerText = "Merging clips...";
+                    updateStitchProgress(50);
                     
                     // Output format matches source extension (webm or mp4) for instant fast copy stitching
                     const outputName = `output.${ext}`;
                     await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', outputName]);
                     
-                    setStatus("Reading output video...");
+                    setStepState(stepMerge, 'completed');
+                    setStepState(stepExport, 'active');
+                    stitchStatus.innerText = "Reading output video...";
+                    updateStitchProgress(95);
+                    
                     const data = await ffmpeg.readFile(outputName);
                     const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: isMp4 ? 'video/mp4' : 'video/webm' }));
                     
@@ -684,25 +1103,33 @@
                     a.click();
                     document.body.removeChild(a);
                     
-                    setStatus("Export complete! Storage cleared.", 3000);
+                    setStepState(stepExport, 'completed');
+                    stitchStatus.innerText = "Export complete! Storage cleared.";
+                    updateStitchProgress(100);
+                    stitchSuccessCheckmark.classList.add('show');
                     
                     // Clear database
                     const clearTx = db.transaction("clips", "readwrite");
                     clearTx.objectStore("clips").clear();
                     renderGallery();
                     
-                    mergeBtn.disabled = false;
-                    recordBtn.disabled = false;
-                    switchBtn.disabled = false;
+                    setTimeout(() => {
+                        stitchModal.classList.add('hidden');
+                        mergeBtn.disabled = false;
+                        recordBtn.disabled = false;
+                        switchBtn.disabled = false;
+                    }, 1500);
                 };
                 
                 getRequest.onerror = () => {
+                    stitchModal.classList.add('hidden');
                     setStatus("Error reading database.", 3000);
                     mergeBtn.disabled = false;
                     recordBtn.disabled = false;
                     switchBtn.disabled = false;
                 }
             } catch (err) {
+                stitchModal.classList.add('hidden');
                 setStatus("Merge failed. See console.", 4000);
                 console.error(err);
                 mergeBtn.disabled = false;
