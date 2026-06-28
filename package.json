@@ -1,0 +1,25 @@
+{
+  "name": "mobile-oneday-journal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "coi-serviceworker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/munir-paviwala/mobile-oneday-journal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/munir-paviwala/mobile-oneday-journal/issues"
+  },
+  "homepage": "https://github.com/munir-paviwala/mobile-oneday-journal#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

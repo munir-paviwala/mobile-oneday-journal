@@ -1,0 +1,17 @@
+{
+  "name": "Daily Stitch",
+  "short_name": "Stitch",
+  "description": "Minimalist video diary app",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

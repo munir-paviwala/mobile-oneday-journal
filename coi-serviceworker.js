@@ -1,7 +1,22 @@
 /*! coi-serviceworker v0.1.7 - Guido Zuidhof and contributors, licensed under MIT */
 let coepCredentialless = false;
+const CACHE_NAME = 'daily-stitch-v1';
+const ASSETS_TO_CACHE = [
+    './',
+    './index.html',
+    './manifest.json',
+    './icon.svg'
+];
+
 if (typeof window === 'undefined') {
-    self.addEventListener("install", () => self.skipWaiting());
+    self.addEventListener("install", (event) => {
+        event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+        );
+        self.skipWaiting();
+    });
     self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
     self.addEventListener("message", (ev) => {
@@ -32,6 +47,7 @@ if (typeof window === 'undefined') {
                 credentials: "omit",
             })
             : r;
+            
         event.respondWith(
             fetch(request)
                 .then((response) => {
@@ -48,13 +64,27 @@ if (typeof window === 'undefined') {
                     }
                     newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
 
-                    return new Response(response.body, {
+                    const resWithHeaders = new Response(response.body, {
                         status: response.status,
                         statusText: response.statusText,
                         headers: newHeaders,
                     });
+                    
+                    if (request.method === 'GET' && request.url.startsWith('http')) {
+                        const resClone = resWithHeaders.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(request, resClone));
+                    }
+                    
+                    return resWithHeaders;
                 })
-                .catch((e) => console.error(e))
+                .catch((e) => {
+                    return caches.match(request).then(cachedResponse => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        throw e;
+                    });
+                })
         );
     });
 
