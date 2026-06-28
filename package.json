@@ -20,6 +20,9 @@
   },
   "homepage": "https://github.com/munir-paviwala/mobile-oneday-journal#readme",
   "dependencies": {
+    "@ffmpeg/core": "^0.12.6",
+    "@ffmpeg/ffmpeg": "^0.12.7",
+    "@ffmpeg/util": "^0.12.1",
     "express": "^5.2.1"
   }
 }

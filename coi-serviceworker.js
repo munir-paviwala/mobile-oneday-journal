@@ -1,11 +1,15 @@
 /*! coi-serviceworker v0.1.7 - Guido Zuidhof and contributors, licensed under MIT */
 let coepCredentialless = false;
-const CACHE_NAME = 'daily-stitch-v1';
+const CACHE_NAME = 'daily-stitch-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './manifest.json',
-    './icon.svg'
+    './icon.svg',
+    './lib/ffmpeg.js',
+    './lib/ffmpeg-util.js',
+    './lib/ffmpeg-core.js',
+    './lib/ffmpeg-core.wasm'
 ];
 
 if (typeof window === 'undefined') {
