@@ -1038,7 +1038,15 @@
                 // Load core scripts locally (Self-Hosted offline support)
                 await ffmpeg.load({
                     coreURL: await toBlobURL('./lib/ffmpeg-core.js', 'text/javascript'),
-                    wasmURL: await toBlobURL('./lib/ffmpeg-core.wasm', 'application/wasm')
+                    wasmURL: await toBlobURL('./lib/ffmpeg-core.wasm', 'application/wasm', true, ({ received, total }) => {
+                        if (total > 0) {
+                            const percent = Math.round((received / total) * 100);
+                            stitchStatus.innerText = `Downloading engine: ${percent}% (${(received / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB)`;
+                            updateStitchProgress(10 + percent * 0.15); // Map 0%-100% download to 10%-25% progress
+                        } else {
+                            stitchStatus.innerText = `Loading engine: ${(received / 1024 / 1024).toFixed(1)}MB fetched...`;
+                        }
+                    })
                 });
                 
                 setStepState(stepEngine, 'completed');

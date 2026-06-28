@@ -1,6 +1,6 @@
 /*! coi-serviceworker v0.1.7 - Guido Zuidhof and contributors, licensed under MIT */
 let coepCredentialless = false;
-const CACHE_NAME = 'daily-stitch-v2';
+const CACHE_NAME = 'daily-stitch-v3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -51,46 +51,63 @@ if (typeof window === 'undefined') {
                 credentials: "omit",
             })
             : r;
-            
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    if (response.status === 0) {
-                        return response;
-                    }
 
-                    const newHeaders = new Headers(response.headers);
-                    newHeaders.set("Cross-Origin-Embedder-Policy",
-                        coepCredentialless ? "credentialless" : "require-corp"
-                    );
-                    if (!coepCredentialless) {
-                        newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
-                    }
-                    newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+        // Apply Cache-First strategy to static library files inside /lib/ folder
+        const useCacheFirst = request.url.includes('/lib/');
 
-                    const resWithHeaders = new Response(response.body, {
-                        status: response.status,
-                        statusText: response.statusText,
-                        headers: newHeaders,
-                    });
-                    
-                    if (request.method === 'GET' && request.url.startsWith('http')) {
-                        const resClone = resWithHeaders.clone();
-                        caches.open(CACHE_NAME).then(cache => cache.put(request, resClone));
+        if (useCacheFirst) {
+            event.respondWith(
+                caches.match(request).then((cachedResponse) => {
+                    if (cachedResponse) {
+                        return cachedResponse;
                     }
-                    
-                    return resWithHeaders;
+                    return fetchAndHeaders(request);
                 })
-                .catch((e) => {
-                    return caches.match(request).then(cachedResponse => {
+            );
+        } else {
+            // Apply Network-First strategy for other files (e.g. index.html) to keep development updates fresh
+            event.respondWith(
+                fetchAndHeaders(request).catch((e) => {
+                    return caches.match(request).then((cachedResponse) => {
                         if (cachedResponse) {
                             return cachedResponse;
                         }
                         throw e;
                     });
                 })
-        );
+            );
+        }
     });
+
+    function fetchAndHeaders(request) {
+        return fetch(request).then((response) => {
+            if (response.status === 0) {
+                return response;
+            }
+
+            const newHeaders = new Headers(response.headers);
+            newHeaders.set("Cross-Origin-Embedder-Policy",
+                coepCredentialless ? "credentialless" : "require-corp"
+            );
+            if (!coepCredentialless) {
+                newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
+            }
+            newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+
+            const resWithHeaders = new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders,
+            });
+            
+            if (request.method === 'GET' && request.url.startsWith('http')) {
+                const resClone = resWithHeaders.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(request, resClone));
+            }
+            
+            return resWithHeaders;
+        });
+    }
 
 } else {
     (() => {
