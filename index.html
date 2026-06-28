@@ -14,9 +14,7 @@
     <!-- Requires coi-serviceworker.js in the root directory for GitHub Pages compatibility -->
     <script src="coi-serviceworker.js"></script>
     
-    <!-- Local self-hosted FFmpeg scripts for offline support (No CDNs) -->
-    <script src="lib/ffmpeg.js"></script>
-    <script src="lib/ffmpeg-util.js"></script>
+    <!-- Local self-hosted FFmpeg scripts removed, using native APIs instead -->
     
     <style>
         :root {
@@ -1025,27 +1023,6 @@
             try {
                 updateStitchProgress(10);
                 
-                const { FFmpeg } = FFmpegWASM;
-                const { toBlobURL } = FFmpegUtil;
-                const ffmpeg = new FFmpeg();
-                
-                // Track progress during execution
-                ffmpeg.on('progress', ({ progress }) => {
-                    stitchStatus.innerText = `Merging: ${Math.round(progress * 100)}%`;
-                    updateStitchProgress(50 + progress * 40); // Map 0.0-1.0 to 50%-90%
-                });
-                
-                // Load core scripts locally (Self-Hosted offline support)
-                await ffmpeg.load({
-                    coreURL: await toBlobURL('./lib/ffmpeg-core.js', 'text/javascript'),
-                    wasmURL: await toBlobURL('./lib/ffmpeg-core.wasm', 'application/wasm')
-                });
-                
-                setStepState(stepEngine, 'completed');
-                setStepState(stepPrepare, 'active');
-                stitchStatus.innerText = "Reading database...";
-                updateStitchProgress(25);
-                
                 const tx = db.transaction("clips", "readonly");
                 const store = tx.objectStore("clips");
                 const getRequest = store.getAll();
@@ -1062,43 +1039,136 @@
                     }
                     
                     stitchStatus.innerText = `Preparing ${clips.length} clip(s)...`;
-                    updateStitchProgress(35);
-                    let listContent = "";
+                    updateStitchProgress(20);
                     
-                    // Determine file extension matching the recorded mimeType
-                    const isMp4 = selectedMimeType.includes('mp4');
-                    const ext = isMp4 ? 'mp4' : 'webm';
+                    setStepState(stepEngine, 'completed');
+                    setStepState(stepPrepare, 'active');
                     
-                    for (let i = 0; i < clips.length; i++) {
-                        const fileName = `clip${i}.${ext}`;
-                        const arrayBuffer = await clips[i].arrayBuffer();
-                        await ffmpeg.writeFile(fileName, new Uint8Array(arrayBuffer));
-                        listContent += `file '${fileName}'\n`;
+                    // Create offscreen canvas for video
+                    const canvas = document.createElement('canvas');
+                    // Typical resolution
+                    canvas.width = 1280;
+                    canvas.height = 720;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Create audio context for audio
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioDest = audioCtx.createMediaStreamDestination();
+                    
+                    // Capture canvas video stream
+                    const canvasStream = canvas.captureStream(30);
+                    const videoTrack = canvasStream.getVideoTracks()[0];
+                    const audioTrack = audioDest.stream.getAudioTracks()[0];
+                    
+                    const tracks = [videoTrack];
+                    if (audioTrack) {
+                        tracks.push(audioTrack);
                     }
                     
-                    await ffmpeg.writeFile('list.txt', listContent);
+                    const mergedStream = new MediaStream(tracks);
+                    
+                    const isMp4 = selectedMimeType.includes('mp4');
+                    const ext = isMp4 ? 'mp4' : 'webm';
+                    // Some browsers need a specific mimeType for MediaRecorder
+                    const recMimeType = selectedMimeType || (isMp4 ? 'video/mp4' : 'video/webm');
+                    
+                    let options = {};
+                    if (MediaRecorder.isTypeSupported(recMimeType)) {
+                        options.mimeType = recMimeType;
+                    } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                        options.mimeType = 'video/webm';
+                    }
+                    
+                    const recorder = new MediaRecorder(mergedStream, options);
+                    const chunks = [];
+                    
+                    recorder.ondataavailable = ev => {
+                        if (ev.data.size > 0) {
+                            chunks.push(ev.data);
+                        }
+                    };
+                    
+                    // Promise to resolve when recorder finishes
+                    const recordingComplete = new Promise(resolve => {
+                        recorder.onstop = resolve;
+                    });
+                    
+                    recorder.start();
                     
                     setStepState(stepPrepare, 'completed');
                     setStepState(stepMerge, 'active');
-                    stitchStatus.innerText = "Merging clips...";
-                    updateStitchProgress(50);
+                    stitchStatus.innerText = `Merging clips... (0/${clips.length})`;
                     
-                    // Output format matches source extension (webm or mp4) for instant fast copy stitching
-                    const outputName = `output.${ext}`;
-                    await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', outputName]);
+                    const hiddenVideo = document.createElement('video');
+                    hiddenVideo.muted = false; // We need audio
+                    hiddenVideo.playsInline = true;
+                    hiddenVideo.crossOrigin = "anonymous";
+                    
+                    // Connect video to audio destination
+                    const sourceNode = audioCtx.createMediaElementSource(hiddenVideo);
+                    sourceNode.connect(audioDest);
+                    
+                    for (let i = 0; i < clips.length; i++) {
+                        stitchStatus.innerText = `Merging clips... (${i + 1}/${clips.length})`;
+                        updateStitchProgress(30 + (i / clips.length) * 50);
+                        
+                        const clipBlob = clips[i];
+                        const clipUrl = URL.createObjectURL(clipBlob);
+                        
+                        await new Promise((resolve, reject) => {
+                            hiddenVideo.src = clipUrl;
+                            
+                            hiddenVideo.onloadedmetadata = () => {
+                                // Adjust canvas size if needed based on first clip
+                                if (i === 0) {
+                                    canvas.width = hiddenVideo.videoWidth;
+                                    canvas.height = hiddenVideo.videoHeight;
+                                }
+                                hiddenVideo.play().catch(reject);
+                            };
+                            
+                            let renderLoop;
+                            const drawFrame = () => {
+                                if (!hiddenVideo.paused && !hiddenVideo.ended) {
+                                    ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+                                    renderLoop = requestAnimationFrame(drawFrame);
+                                }
+                            };
+                            
+                            hiddenVideo.onplay = () => {
+                                drawFrame();
+                            };
+                            
+                            hiddenVideo.onended = () => {
+                                cancelAnimationFrame(renderLoop);
+                                URL.revokeObjectURL(clipUrl);
+                                resolve();
+                            };
+                            
+                            hiddenVideo.onerror = (err) => {
+                                cancelAnimationFrame(renderLoop);
+                                URL.revokeObjectURL(clipUrl);
+                                reject(err);
+                            };
+                        });
+                    }
+                    
+                    recorder.stop();
+                    await recordingComplete;
                     
                     setStepState(stepMerge, 'completed');
                     setStepState(stepExport, 'active');
-                    stitchStatus.innerText = "Reading output video...";
+                    stitchStatus.innerText = "Exporting video...";
                     updateStitchProgress(95);
                     
-                    const data = await ffmpeg.readFile(outputName);
-                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: isMp4 ? 'video/mp4' : 'video/webm' }));
+                    const finalBlob = new Blob(chunks, { type: options.mimeType || 'video/webm' });
+                    const videoUrl = URL.createObjectURL(finalBlob);
                     
                     // Trigger download
                     const a = document.createElement('a');
                     a.href = videoUrl;
-                    a.download = `Stitch_${new Date().toISOString().split('T')[0]}.${ext}`;
+                    const finalExt = options.mimeType && options.mimeType.includes('mp4') ? 'mp4' : 'webm';
+                    a.download = `Stitch_${new Date().toISOString().split('T')[0]}.${finalExt}`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -1107,6 +1177,11 @@
                     stitchStatus.innerText = "Export complete! Storage cleared.";
                     updateStitchProgress(100);
                     stitchSuccessCheckmark.classList.add('show');
+                    
+                    // Clean up audio context
+                    if (audioCtx.state !== 'closed') {
+                        audioCtx.close();
+                    }
                     
                     // Clear database
                     const clearTx = db.transaction("clips", "readwrite");
