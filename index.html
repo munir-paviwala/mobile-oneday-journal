@@ -309,6 +309,26 @@
             font-weight: 600;
             cursor: pointer;
         }
+
+        #clear-all-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: var(--accent);
+            cursor: pointer;
+            width: auto;
+            flex: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        #clear-all-btn:active {
+            transform: scale(0.95);
+            background: rgba(232, 93, 78, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -339,7 +359,10 @@
     <div id="gallery-container">
         <div class="gallery-header">
             <span class="gallery-title">Today's Clips</span>
-            <span id="clip-count-badge">Loading...</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="clip-count-badge">Loading...</span>
+                <button id="clear-all-btn">Clear All</button>
+            </div>
         </div>
         <div id="gallery-scroll" class="gallery-scroll">
             <!-- Dynamic clips items go here -->
@@ -487,7 +510,11 @@
                     cursor.continue();
                 } else {
                     document.getElementById('clip-count-badge').innerText = count > 0 ? `${count} clip(s)` : '0 clips';
-                    if (count === 0) {
+                    const clearAllBtn = document.getElementById('clear-all-btn');
+                    if (count > 0) {
+                        clearAllBtn.style.display = 'block';
+                    } else {
+                        clearAllBtn.style.display = 'none';
                         galleryScroll.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px; padding: 25px 5px; width: 100%; text-align: center;">No clips logged today.</div>';
                     }
                 }
@@ -547,6 +574,20 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') return;
             currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
             startCamera(currentFacingMode);
+        });
+
+        // Clear All Clips Button Click
+        const clearAllBtn = document.getElementById('clear-all-btn');
+        clearAllBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') return;
+            if (confirm("Are you sure you want to delete all clips recorded today?")) {
+                const clearTx = db.transaction("clips", "readwrite");
+                clearTx.objectStore("clips").clear();
+                clearTx.oncomplete = () => {
+                    renderGallery();
+                    setStatus("All clips cleared.", 1500);
+                };
+            }
         });
 
         // Record Button Click
