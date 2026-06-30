@@ -11,11 +11,7 @@
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="apple-touch-icon" href="icon.svg">
 
-    <!-- Requires coi-serviceworker.js in the root directory for GitHub Pages compatibility -->
-    <script src="coi-serviceworker.js"></script>
-    
-    <!-- Local self-hosted FFmpeg scripts removed, using native APIs instead -->
-    
+
     <style>
         :root {
             --bg: #121212;
@@ -26,6 +22,131 @@
             --border: #333333;
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 20px);
         }
+
+        /* ── Countdown Overlay ── */
+        #countdown-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            font-size: 72px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.6);
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+        #countdown-overlay.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #countdown-overlay.pop {
+            animation: countdown-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes countdown-pop {
+            0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+            60%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        /* ── Recording Ring on Viewfinder ── */
+        #video-container.recording-active {
+            box-shadow: 0 0 0 3px var(--accent), 0 10px 30px rgba(0,0,0,0.5);
+            transition: box-shadow 0.2s;
+        }
+
+        /* ── Filter Strip ── */
+        #filter-strip {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            max-width: 450px;
+            overflow-x: auto;
+            padding: 8px 2px;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+        }
+        #filter-strip::-webkit-scrollbar { display: none; }
+        .filter-btn {
+            flex-shrink: 0;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.18s ease;
+            scroll-snap-align: start;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .filter-btn .filter-swatch {
+            width: 28px;
+            height: 20px;
+            border-radius: 5px;
+            background: #555;
+        }
+        .filter-btn.active {
+            border-color: var(--accent);
+            color: var(--text);
+            background: rgba(232, 93, 78, 0.08);
+        }
+        .filter-btn:active { transform: scale(0.94); }
+
+        /* ── Clip Drag Reorder ── */
+        .clip-card.drag-source {
+            opacity: 0.35;
+            border-color: var(--accent);
+            transform: scale(0.96);
+            transition: opacity 0.15s, transform 0.15s;
+        }
+        .clip-card.drag-over {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+        #gallery-scroll.reordering {
+            cursor: grabbing;
+        }
+        .clip-card.long-pressing {
+            animation: long-press-pulse 0.5s ease forwards;
+        }
+        @keyframes long-press-pulse {
+            0%   { transform: scale(1); }
+            50%  { transform: scale(0.93); }
+            100% { transform: scale(1.04); box-shadow: 0 0 0 2px var(--accent); }
+        }
+
+        /* ── Share button in stitch modal ── */
+        #stitch-share-btn {
+            display: none;
+            margin-top: 16px;
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 13px 28px;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.15s, opacity 0.15s;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+        #stitch-share-btn.visible {
+            display: flex;
+        }
+        #stitch-share-btn:active { transform: scale(0.97); }
 
         * {
             box-sizing: border-box;
@@ -688,18 +809,55 @@
                 <div id="step-merge" class="step">Merge & process timeline</div>
                 <div id="step-export" class="step">Export movie to download</div>
             </div>
+
+            <!-- Share / Re-download after success -->
+            <button id="stitch-share-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Share Video
+            </button>
         </div>
     </div>
     
     <div id="video-container">
         <div id="status-overlay">Initializing camera...</div>
         <video id="video-preview" autoplay muted playsinline></video>
+
+        <!-- Countdown Overlay -->
+        <div id="countdown-overlay"></div>
         
         <!-- Toggle Camera Button -->
         <button id="switch-btn" title="Switch Camera">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
             </svg>
+        </button>
+    </div>
+
+    <!-- Filter Strip -->
+    <div id="filter-strip">
+        <button class="filter-btn active" data-filter="none" id="filter-none">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#555,#888);"></div>
+            Normal
+        </button>
+        <button class="filter-btn" data-filter="warm" id="filter-warm">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#a06030,#e09050);"></div>
+            Warm
+        </button>
+        <button class="filter-btn" data-filter="cool" id="filter-cool">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#305080,#5090c0);"></div>
+            Cool
+        </button>
+        <button class="filter-btn" data-filter="bw" id="filter-bw">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#222,#bbb);"></div>
+            B&amp;W
+        </button>
+        <button class="filter-btn" data-filter="vivid" id="filter-vivid">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#c030a0,#30c080);"></div>
+            Vivid
+        </button>
+        <button class="filter-btn" data-filter="fade" id="filter-fade">
+            <div class="filter-swatch" style="background: linear-gradient(135deg,#888,#bba);"></div>
+            Fade
         </button>
     </div>
 
@@ -758,12 +916,42 @@
         const switchBtn = document.getElementById('switch-btn');
         const statusOverlay = document.getElementById('status-overlay');
         const galleryScroll = document.getElementById('gallery-scroll');
+        const countdownOverlay = document.getElementById('countdown-overlay');
+        const videoContainer = document.getElementById('video-container');
+        const stitchShareBtn = document.getElementById('stitch-share-btn');
         
         let mediaRecorder;
         let db;
         let selectedMimeType = '';
         let localStream;
         let currentFacingMode = "environment"; // Default to back camera
+        let lastStitchedBlob = null; // for share sheet
+        let clipOrder = []; // ordered array of IndexedDB keys
+
+        // ── Filter System ──
+        const FILTERS = {
+            none:  '',
+            warm:  'sepia(0.3) saturate(1.4) brightness(1.05)',
+            cool:  'hue-rotate(200deg) saturate(0.9) brightness(0.95)',
+            bw:    'grayscale(1) contrast(1.1)',
+            vivid: 'saturate(2) contrast(1.1)',
+            fade:  'brightness(1.1) contrast(0.85) saturate(0.7)'
+        };
+        let activeFilter = 'none';
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = btn.dataset.filter;
+                video.style.filter = FILTERS[activeFilter];
+            });
+        });
+
+        // ── Haptics helper ──
+        function haptic(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
 
         function setStatus(text, hideAfter = 0) {
             statusOverlay.innerText = text;
@@ -792,50 +980,69 @@
             return ''; 
         }
 
-        // Initialize Database
-        const request = indexedDB.open("VideoDiaryDB", 1);
+        // Initialize Database — v2 schema stores { blob, timestamp }
+        const request = indexedDB.open("VideoDiaryDB", 2);
         request.onupgradeneeded = (e) => {
             db = e.target.result;
-            db.createObjectStore("clips", { autoIncrement: true });
+            const oldVersion = e.oldVersion;
+            if (oldVersion < 1) {
+                db.createObjectStore("clips", { autoIncrement: true });
+            }
+            // v2: we keep same store but now store objects; old raw blobs still readable
         };
         request.onsuccess = (e) => { 
             db = e.target.result; 
             renderGallery();
         };
 
-        // Render visual clip list from IndexedDB
+        // ── Gallery Rendering with drag-to-reorder ──
         function renderGallery() {
             if (!db) return;
             const tx = db.transaction("clips", "readonly");
             const store = tx.objectStore("clips");
             const getCursor = store.openCursor();
-            
+
             // Revoke old object URLs to clear memory
             galleryScroll.querySelectorAll('video').forEach(v => {
                 if (v.src) URL.revokeObjectURL(v.src);
             });
             galleryScroll.innerHTML = '';
-            
+            clipOrder = [];
+
             let count = 0;
             getCursor.onsuccess = (e) => {
                 const cursor = e.target.result;
                 if (cursor) {
                     const id = cursor.key;
-                    const blob = cursor.value;
+                    const entry = cursor.value;
+                    // Support both old raw blobs and new {blob, timestamp} entries
+                    const blob = entry instanceof Blob ? entry : entry.blob;
+                    const timestamp = entry instanceof Blob ? null : entry.timestamp;
                     const url = URL.createObjectURL(blob);
-                    
+
+                    clipOrder.push(id);
+
                     const card = document.createElement('div');
                     card.className = 'clip-card';
+                    card.dataset.id = id;
+                    card.draggable = true;
+
+                    const timeLabel = timestamp
+                        ? `<span style="position:absolute;bottom:5px;left:5px;font-size:9px;font-weight:700;color:rgba(255,255,255,0.85);background:rgba(0,0,0,0.55);padding:2px 5px;border-radius:6px;pointer-events:none;">${new Date(timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`
+                        : '';
+
                     card.innerHTML = `
                         <video src="${url}" muted playsinline loop></video>
+                        ${timeLabel}
                         <button class="clip-delete-btn" title="Delete Clip">&times;</button>
                     `;
-                    
+
                     const vid = card.querySelector('video');
+
+                    // Play / pause on tap
                     card.addEventListener('click', (ev) => {
                         if (ev.target.classList.contains('clip-delete-btn')) return;
                         if (vid.paused) {
-                            // Pause all other video elements in gallery
                             galleryScroll.querySelectorAll('video').forEach(v => {
                                 v.pause();
                                 v.parentElement.classList.remove('playing');
@@ -847,12 +1054,22 @@
                             card.classList.remove('playing');
                         }
                     });
-                    
+
                     card.querySelector('.clip-delete-btn').addEventListener('click', (ev) => {
                         ev.stopPropagation();
                         deleteClip(id);
                     });
-                    
+
+                    // ── Drag-to-reorder (desktop) ──
+                    card.addEventListener('dragstart', onDragStart);
+                    card.addEventListener('dragover',  onDragOver);
+                    card.addEventListener('dragleave', onDragLeave);
+                    card.addEventListener('drop',      onDrop);
+                    card.addEventListener('dragend',   onDragEnd);
+
+                    // ── Long-press drag (touch/mobile) ──
+                    setupTouchDrag(card);
+
                     galleryScroll.appendChild(card);
                     count++;
                     cursor.continue();
@@ -869,11 +1086,133 @@
             };
         }
 
+        // ── Drag helpers (desktop HTML5 drag) ──
+        let dragSrcCard = null;
+
+        function onDragStart(e) {
+            dragSrcCard = this;
+            this.classList.add('drag-source');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        function onDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (this !== dragSrcCard) this.classList.add('drag-over');
+        }
+        function onDragLeave() {
+            this.classList.remove('drag-over');
+        }
+        function onDrop(e) {
+            e.preventDefault();
+            if (this === dragSrcCard) return;
+            this.classList.remove('drag-over');
+            // Swap DOM positions
+            const allCards = [...galleryScroll.querySelectorAll('.clip-card')];
+            const srcIdx = allCards.indexOf(dragSrcCard);
+            const dstIdx = allCards.indexOf(this);
+            if (srcIdx < dstIdx) {
+                galleryScroll.insertBefore(dragSrcCard, this.nextSibling);
+            } else {
+                galleryScroll.insertBefore(dragSrcCard, this);
+            }
+            haptic([30, 20, 30]);
+        }
+        function onDragEnd() {
+            this.classList.remove('drag-source');
+            galleryScroll.querySelectorAll('.clip-card').forEach(c => c.classList.remove('drag-over'));
+            dragSrcCard = null;
+        }
+
+        // ── Touch long-press drag (mobile) ──
+        function setupTouchDrag(card) {
+            let longPressTimer = null;
+            let isDragging = false;
+            let ghost = null;
+            let offsetX = 0, offsetY = 0;
+
+            card.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                longPressTimer = setTimeout(() => {
+                    isDragging = true;
+                    haptic([40, 20, 40]);
+                    card.classList.add('drag-source', 'long-pressing');
+                    galleryScroll.classList.add('reordering');
+
+                    // Create ghost element
+                    ghost = card.cloneNode(true);
+                    ghost.style.cssText = `
+                        position: fixed;
+                        width: ${card.offsetWidth}px;
+                        height: ${card.offsetHeight}px;
+                        opacity: 0.85;
+                        pointer-events: none;
+                        z-index: 9999;
+                        border-radius: 14px;
+                        border: 2px solid var(--accent);
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                        transform: scale(1.08);
+                        transition: transform 0.1s;
+                    `;
+                    const rect = card.getBoundingClientRect();
+                    offsetX = touch.clientX - rect.left;
+                    offsetY = touch.clientY - rect.top;
+                    ghost.style.left = (touch.clientX - offsetX) + 'px';
+                    ghost.style.top  = (touch.clientY - offsetY) + 'px';
+                    document.body.appendChild(ghost);
+                }, 420);
+            }, { passive: true });
+
+            card.addEventListener('touchmove', (e) => {
+                if (!isDragging) { clearTimeout(longPressTimer); return; }
+                e.preventDefault();
+                const touch = e.touches[0];
+                if (ghost) {
+                    ghost.style.left = (touch.clientX - offsetX) + 'px';
+                    ghost.style.top  = (touch.clientY - offsetY) + 'px';
+                }
+                // Find card under finger
+                const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                const targetCard = elUnder ? elUnder.closest('.clip-card') : null;
+                galleryScroll.querySelectorAll('.clip-card').forEach(c => c.classList.remove('drag-over'));
+                if (targetCard && targetCard !== card) targetCard.classList.add('drag-over');
+            }, { passive: false });
+
+            const endDrag = (e) => {
+                clearTimeout(longPressTimer);
+                if (!isDragging) return;
+                isDragging = false;
+                card.classList.remove('drag-source', 'long-pressing');
+                galleryScroll.classList.remove('reordering');
+                if (ghost) { ghost.remove(); ghost = null; }
+
+                const touch = (e.changedTouches || e.touches)[0];
+                if (!touch) return;
+                const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                const targetCard = elUnder ? elUnder.closest('.clip-card') : null;
+                galleryScroll.querySelectorAll('.clip-card').forEach(c => c.classList.remove('drag-over'));
+
+                if (targetCard && targetCard !== card) {
+                    const allCards = [...galleryScroll.querySelectorAll('.clip-card')];
+                    const srcIdx = allCards.indexOf(card);
+                    const dstIdx = allCards.indexOf(targetCard);
+                    if (srcIdx < dstIdx) {
+                        galleryScroll.insertBefore(card, targetCard.nextSibling);
+                    } else {
+                        galleryScroll.insertBefore(card, targetCard);
+                    }
+                    haptic([30, 20, 30]);
+                }
+            };
+            card.addEventListener('touchend', endDrag);
+            card.addEventListener('touchcancel', endDrag);
+        }
+
         function deleteClip(id) {
             const tx = db.transaction("clips", "readwrite");
             const store = tx.objectStore("clips");
             store.delete(id).onsuccess = () => {
                 renderGallery();
+                haptic([30]);
                 setStatus("Clip deleted", 1500);
             };
         }
@@ -892,6 +1231,8 @@
             .then(stream => {
                 localStream = stream;
                 video.srcObject = stream;
+                // Reapply active filter to new stream preview
+                video.style.filter = FILTERS[activeFilter];
                 setStatus("Ready", 1500);
                 
                 selectedMimeType = getSupportedMimeType();
@@ -900,8 +1241,9 @@
                 mediaRecorder = new MediaRecorder(stream, options);
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) {
+                        const entry = { blob: e.data, timestamp: Date.now() };
                         const tx = db.transaction("clips", "readwrite");
-                        tx.objectStore("clips").add(e.data);
+                        tx.objectStore("clips").add(entry);
                         tx.oncomplete = () => {
                             renderGallery();
                         };
@@ -990,25 +1332,70 @@
             }
         });
 
-        // Record Button Click
+        // Share button (appears after successful stitch)
+        stitchShareBtn.addEventListener('click', async () => {
+            if (!lastStitchedBlob) return;
+            const ext = lastStitchedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+            const file = new File([lastStitchedBlob], `DailyStitch_${new Date().toISOString().split('T')[0]}.${ext}`, { type: lastStitchedBlob.type });
+            try {
+                await navigator.share({ files: [file], title: 'My Daily Stitch' });
+                haptic([30, 20, 60]);
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error('Share failed:', err);
+            }
+        });
+
+        // ── Countdown then Record ──
+        function showCountdown(seconds, onDone) {
+            let remaining = seconds;
+            countdownOverlay.classList.remove('show', 'pop');
+
+            function tick() {
+                if (remaining <= 0) {
+                    countdownOverlay.classList.remove('show', 'pop');
+                    countdownOverlay.innerText = '';
+                    onDone();
+                    return;
+                }
+                countdownOverlay.innerText = remaining;
+                // force reflow to restart animation
+                countdownOverlay.classList.remove('pop');
+                void countdownOverlay.offsetWidth;
+                countdownOverlay.classList.add('show', 'pop');
+                haptic([25]);
+                remaining--;
+                setTimeout(tick, 1000);
+            }
+            tick();
+        }
+
         recordBtn.addEventListener('click', () => {
             if (!mediaRecorder || mediaRecorder.state === 'recording') return;
-            
-            mediaRecorder.start();
-            setStatus("Recording...");
-            recordBtn.classList.add('recording');
-            recordBtn.innerHTML = "Recording...";
+            recordBtn.disabled = true;
             mergeBtn.disabled = true;
             switchBtn.disabled = true;
-            
-            setTimeout(() => {
-                mediaRecorder.stop();
-                setStatus("Clip logged!", 2000);
-                recordBtn.classList.remove('recording');
-                recordBtn.innerHTML = '<div style="width:12px;height:12px;border-radius:50%;background:currentColor;"></div> Record 3s';
-                mergeBtn.disabled = false;
-                switchBtn.disabled = false;
-            }, 3000);
+
+            showCountdown(3, () => {
+                // Recording starts after countdown
+                haptic([60]);
+                videoContainer.classList.add('recording-active');
+                mediaRecorder.start();
+                setStatus("Recording...");
+                recordBtn.classList.add('recording');
+                recordBtn.innerHTML = "Recording...";
+
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                    haptic([40, 30, 80]);
+                    videoContainer.classList.remove('recording-active');
+                    setStatus("Clip logged!", 2000);
+                    recordBtn.classList.remove('recording');
+                    recordBtn.disabled = false;
+                    recordBtn.innerHTML = '<div style="width:12px;height:12px;border-radius:50%;background:currentColor;"></div> Record 3s';
+                    mergeBtn.disabled = false;
+                    switchBtn.disabled = false;
+                }, 3000);
+            });
         });
 
         // Stitch & Merge Button Click
@@ -1017,18 +1404,33 @@
             recordBtn.disabled = true;
             switchBtn.disabled = true;
             
+            stitchShareBtn.classList.remove('visible');
+            lastStitchedBlob = null;
             resetStitchModal();
             stitchModal.classList.remove('hidden');
-            
+
             try {
                 updateStitchProgress(10);
-                
+
+                // Use DOM order for clip sequence (respects user's reordering)
+                const orderedIds = [...galleryScroll.querySelectorAll('.clip-card')].map(c => Number(c.dataset.id));
+
                 const tx = db.transaction("clips", "readonly");
                 const store = tx.objectStore("clips");
                 const getRequest = store.getAll();
                 
                 getRequest.onsuccess = async (e) => {
-                    const clips = e.target.result;
+                    const rawClips = e.target.result;
+                    // Build an id→blob map, then respect DOM order
+                    const clipMap = {};
+                    rawClips.forEach((entry, idx) => {
+                        // autoIncrement keys start at 1; map by position
+                        const blob = entry instanceof Blob ? entry : entry.blob;
+                        clipMap[idx + 1] = blob;
+                    });
+                    const clips = orderedIds.length > 0
+                        ? orderedIds.map(id => clipMap[id]).filter(Boolean)
+                        : rawClips.map(e => e instanceof Blob ? e : e.blob);
                     if (clips.length === 0) {
                         stitchModal.classList.add('hidden');
                         setStatus("No clips logged today.", 3000);
@@ -1108,25 +1510,28 @@
                     const sourceNode = audioCtx.createMediaElementSource(hiddenVideo);
                     sourceNode.connect(audioDest);
                     
+                    // Apply active filter to canvas during stitch
+                    ctx.filter = FILTERS[activeFilter] || 'none';
+
                     for (let i = 0; i < clips.length; i++) {
                         stitchStatus.innerText = `Merging clips... (${i + 1}/${clips.length})`;
                         updateStitchProgress(30 + (i / clips.length) * 50);
-                        
+
                         const clipBlob = clips[i];
                         const clipUrl = URL.createObjectURL(clipBlob);
-                        
+
                         await new Promise((resolve, reject) => {
                             hiddenVideo.src = clipUrl;
-                            
+
                             hiddenVideo.onloadedmetadata = () => {
-                                // Adjust canvas size if needed based on first clip
+                                // Adjust canvas size based on first clip
                                 if (i === 0) {
                                     canvas.width = hiddenVideo.videoWidth;
                                     canvas.height = hiddenVideo.videoHeight;
                                 }
                                 hiddenVideo.play().catch(reject);
                             };
-                            
+
                             let renderLoop;
                             const drawFrame = () => {
                                 if (!hiddenVideo.paused && !hiddenVideo.ended) {
@@ -1134,17 +1539,15 @@
                                     renderLoop = requestAnimationFrame(drawFrame);
                                 }
                             };
-                            
-                            hiddenVideo.onplay = () => {
-                                drawFrame();
-                            };
-                            
+
+                            hiddenVideo.onplay = () => { drawFrame(); };
+
                             hiddenVideo.onended = () => {
                                 cancelAnimationFrame(renderLoop);
                                 URL.revokeObjectURL(clipUrl);
                                 resolve();
                             };
-                            
+
                             hiddenVideo.onerror = (err) => {
                                 cancelAnimationFrame(renderLoop);
                                 URL.revokeObjectURL(clipUrl);
@@ -1152,6 +1555,8 @@
                             };
                         });
                     }
+                    // Reset canvas filter after stitch
+                    ctx.filter = 'none';
                     
                     recorder.stop();
                     await recordingComplete;
@@ -1161,22 +1566,29 @@
                     stitchStatus.innerText = "Exporting video...";
                     updateStitchProgress(95);
                     
+                    const finalExt = options.mimeType && options.mimeType.includes('mp4') ? 'mp4' : 'webm';
                     const finalBlob = new Blob(chunks, { type: options.mimeType || 'video/webm' });
+                    lastStitchedBlob = finalBlob;
                     const videoUrl = URL.createObjectURL(finalBlob);
-                    
+
                     // Trigger download
                     const a = document.createElement('a');
                     a.href = videoUrl;
-                    const finalExt = options.mimeType && options.mimeType.includes('mp4') ? 'mp4' : 'webm';
                     a.download = `Stitch_${new Date().toISOString().split('T')[0]}.${finalExt}`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    
+
                     setStepState(stepExport, 'completed');
-                    stitchStatus.innerText = "Export complete! Storage cleared.";
+                    stitchStatus.innerText = "Saved to Downloads!";
                     updateStitchProgress(100);
                     stitchSuccessCheckmark.classList.add('show');
+                    haptic([50, 30, 50, 30, 100]);
+
+                    // Show share button if Web Share API with files is supported
+                    if (navigator.canShare && navigator.canShare({ files: [new File([finalBlob], 'test.webm')] })) {
+                        stitchShareBtn.classList.add('visible');
+                    }
                     
                     // Clean up audio context
                     if (audioCtx.state !== 'closed') {
@@ -1188,12 +1600,14 @@
                     clearTx.objectStore("clips").clear();
                     renderGallery();
                     
+                    // If share is available keep modal open longer so user can tap Share
+                    const closeDelay = stitchShareBtn.classList.contains('visible') ? 6000 : 1500;
                     setTimeout(() => {
                         stitchModal.classList.add('hidden');
                         mergeBtn.disabled = false;
                         recordBtn.disabled = false;
                         switchBtn.disabled = false;
-                    }, 1500);
+                    }, closeDelay);
                 };
                 
                 getRequest.onerror = () => {
