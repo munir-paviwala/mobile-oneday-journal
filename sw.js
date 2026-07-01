@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daily-stitch-v1';
+const CACHE_NAME = 'daily-stitch-v2';
 const ASSETS = [
     './',
     './index.html',
